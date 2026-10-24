@@ -15,7 +15,8 @@ Reex 1.8.9 的开源重写版：一个可长期维护的 Flutter + libmpv 播放
 - [x] SAF 选片（MainActivity 自实现，复制到 cache 后播放）
 - [x] 最近打开记录（SharedPreferences）
 - [x] 媒体库（MediaStore 扫描；缩略图待做）
-- [ ] SMB / WebDAV / FTP
+- [x] **SMB**（libsmb2 FFI + 本地 HTTP Range 代理，支持浏览/播放/拖动）
+- [ ] WebDAV / FTP
 - [ ] 播放列表 / 历史 / 收藏（可导入 `reex.sqlite`，schema 见 RE 仓库 `data/reex-schema.sql`）
 - [x] 音轨/字幕切换、倍速、±10s、进度记忆
 - [ ] 画中画 / 后台播放 / 通知栏
@@ -59,11 +60,27 @@ Android SDK 36、JDK 21、NDK r28c。
    `file_picker` / `package_info_plus` / `wakelock_plus` 在本环境下无法编译，
    已改为：SAF 自实现选片 + `third_party/` 里两个纯 Dart stub。
 
+## SMB 实现要点
+
+- 复用 Reex 内置的 `libsmb2.so`（3.1.1，arm64，已放入 `android/app/src/main/jniLibs/`）；
+- 所有 libsmb2 调用在**独立 worker isolate** 里（同步 API，不阻塞 UI）；
+- 播放不写自定义 mpv 流协议：起一个 **127.0.0.1 的 HTTP Range 代理**，让 mpv 当普通 http 源播放；
+- 支持 `smb://user:pass@host/share/path` 与 Reex 的 `smb2://{json}` 两种入口。
+
+诊断入口（便于自动化验证）：
+
+```bash
+adb shell am start -a android.intent.action.VIEW \
+  -d 'reexplayer://smb-list?server=HOST&share=SHARE&user=U&pass=P&path=/' \
+  -n io.github.whyd9527.reex_player/.MainActivity
+# 结果在 logcat：adb logcat -s flutter | grep '\[smb\]'
+```
+
 ## 体积
 
 | 包 | 体积 |
 | --- | --- |
-| arm64-v8a release（split） | **29.3 MB** |
+| arm64-v8a release（split） | **30.6 MB**（含 libsmb2.so） |
 | armeabi-v7a release（split） | 25.9 MB |
 | universal release | 86.2 MB |
 | 参考：原版 Reex 1.8.9 | 22.1 MB |

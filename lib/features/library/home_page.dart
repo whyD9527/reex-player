@@ -1,11 +1,15 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/recent_store.dart';
 import '../../platform/intent_channel.dart';
 import '../../platform/media_library.dart';
+import '../../data/smb_accounts.dart';
+import '../../smb/smb_session.dart';
+import '../network/network_page.dart';
 import '../player/player_page.dart';
 import '../settings/settings_page.dart';
 
@@ -37,6 +41,36 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _openUri(String uri) async {
+    // 诊断用：reexplayer://smb-list?server=..&share=..&user=..&pass=..&path=/
+    if (uri.startsWith('reexplayer://smb-list')) {
+      final q = Uri.parse(uri).queryParameters;
+      try {
+        final account = SmbAccount(
+          server: q['server'] ?? '',
+          share: q['share'] ?? '',
+          user: q['user'] ?? '',
+          pass: q['pass'] ?? '',
+          domain: q['domain'] ?? '',
+        );
+        final client = await SmbSession.client(account);
+        final entries = await client.list(q['path'] ?? '/');
+        final shown = entries
+            .take(20)
+            .map((e) => e.isDir ? '${e.name}/' : '${e.name} (${e.size})')
+            .join(', ');
+        debugPrint('[smb] list ${entries.length} entries: $shown');
+      } catch (e) {
+        debugPrint('[smb] list failed: $e');
+      }
+      return;
+    }
+    if (uri.startsWith('smb://') || uri.startsWith('smb2://')) {
+      final smb = SmbUrl.parse(uri);
+      if (smb != null) {
+        await _playSmb(smb);
+        return;
+      }
+    }
     final path = uri.startsWith('file://') ? Uri.parse(uri).toFilePath() : uri;
     final name = path.split(Platform.pathSeparator).last;
     await RecentStore().add(path);
@@ -45,6 +79,28 @@ class _HomePageState extends ConsumerState<HomePage> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => PlayerPage(path: path, title: name)),
     );
+  }
+
+  Future<void> _playSmb(SmbUrl smb) async {
+    final name = smb.path.split('/').last;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final url = await SmbSession.urlFor(smb.toAccount(), smb.path);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => PlayerPage(path: url, title: name)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      debugPrint('[smb] play failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SMB 播放失败: $e')));
+    }
   }
 
   Future<void> _pickAndPlay() async {
@@ -60,6 +116,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppBar(
         title: const Text('Reex Player'),
         actions: [
+          IconButton(
+            tooltip: '网络共享',
+            icon: const Icon(Icons.lan_outlined),
+            onPressed: () => Navigator.of(context).pushNamed(NetworkPage.route),
+          ),
           IconButton(
             tooltip: '刷新媒体库',
             icon: const Icon(Icons.refresh),

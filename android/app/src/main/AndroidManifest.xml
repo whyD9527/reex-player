@@ -8,7 +8,8 @@
     <application
         android:label="Reex Player"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -34,6 +35,7 @@
                 <data android:scheme="content" />
                 <data android:scheme="http" />
                 <data android:scheme="https" />
+                <data android:scheme="smb" />
                 <data android:mimeType="video/*" />
                 <data android:mimeType="audio/*" />
             </intent-filter>
