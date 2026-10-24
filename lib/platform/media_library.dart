@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/services.dart';
 
 /// 媒体库条目（来自 MediaStore）。
@@ -55,6 +57,15 @@ class MediaLibrary {
       return false;
     } on MissingPluginException {
       return false;
+    }
+  }
+
+  /// 取媒体库缩略图（JPEG 字节）。
+  static Future<Uint8List?> thumbnail(int id) async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('thumbnail', id);
+    } catch (_) {
+      return null;
     }
   }
 

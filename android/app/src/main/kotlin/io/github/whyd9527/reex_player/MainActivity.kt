@@ -47,9 +47,68 @@ class MainActivity : FlutterActivity() {
             }
         }
         mediaChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "reex_player/media")
+        val playback = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "reex_player/playback")
+        PlaybackService.channel = playback
+        playback.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    if (Build.VERSION.SDK_INT >= 33 &&
+                        checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), REQ_NOTIF)
+                    }
+                    val args = call.arguments as? Map<*, *>
+                    PlaybackService.currentTitle = (args?.get("title") as? String) ?: ""
+                    PlaybackService.currentDuration = ((args?.get("duration") as? Number) ?: 0).toLong()
+                    PlaybackService.isPlaying = true
+                    val intent = Intent(this, PlaybackService::class.java).setAction("start")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+                    result.success(true)
+                }
+                "update" -> {
+                    val args = call.arguments as? Map<*, *>
+                    PlaybackService.currentTitle = (args?.get("title") as? String) ?: PlaybackService.currentTitle
+                    PlaybackService.currentPosition = ((args?.get("position") as? Number) ?: 0).toLong()
+                    PlaybackService.currentDuration = ((args?.get("duration") as? Number) ?: 0).toLong()
+                    PlaybackService.isPlaying = (args?.get("playing") as? Boolean) ?: false
+                    val intent = Intent(this, PlaybackService::class.java).setAction("update")
+                    startService(intent)
+                    result.success(true)
+                }
+                "stop" -> {
+                    PlaybackService.isPlaying = false
+                    stopService(Intent(this, PlaybackService::class.java))
+                    result.success(true)
+                }
+                "keepScreenOn" -> {
+                    val on = (call.arguments as? Boolean) ?: false
+                    runOnUiThread {
+                        if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    result.success(true)
+                }
+                "setVolume" -> {
+                    val v = ((call.arguments as? Number) ?: 1.0).toFloat()
+                    val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+                    val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                    am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (v * max).toInt(), 0)
+                    result.success(true)
+                }
+                "setBrightness" -> {
+                    val v = ((call.arguments as? Number) ?: 0.5).toFloat()
+                    runOnUiThread {
+                        window.attributes = window.attributes.apply { screenBrightness = v.coerceIn(0.01f, 1f) }
+                    }
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
         mediaChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "scanVideos" -> scanVideos(result)
+                "thumbnail" -> thumbnail((call.arguments as? Number)?.toLong() ?: 0L, result)
                 "ensurePermission" -> ensurePermission(result)
                 else -> result.notImplemented()
             }
@@ -130,6 +189,24 @@ class MainActivity : FlutterActivity() {
 
     // ---- 选片 ----
 
+    private fun thumbnail(id: Long, result: MethodChannel.Result) {
+        try {
+            val uri = android.content.ContentUris.withAppendedId(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val bmp = contentResolver.loadThumbnail(uri, android.util.Size(256, 256), null)
+                val out = java.io.ByteArrayOutputStream()
+                bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+                bmp.recycle()
+                result.success(out.toByteArray())
+            } else {
+                result.success(null)
+            }
+        } catch (e: Exception) {
+            result.success(null)
+        }
+    }
+
     private fun openDocument(result: MethodChannel.Result) {
         if (pendingPick != null) {
             result.error("busy", "another picker is open", null)
@@ -206,5 +283,6 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val REQ_PICK = 0x5EED
         private const val REQ_PERM = 0x5EEE
+        private const val REQ_NOTIF = 0x5EEF
     }
 }

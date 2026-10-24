@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/library/home_page.dart';
 import 'features/network/network_page.dart';
+import 'features/library/library_pages.dart';
 import 'features/network/webdav_page.dart';
 import 'features/settings/settings_page.dart';
 
@@ -25,6 +26,9 @@ class ReexApp extends ConsumerWidget {
       routes: {
         SettingsPage.route: (_) => const SettingsPage(),
         NetworkPage.route: (_) => const NetworkPage(),
+        HistoryPage.route: (_) => const HistoryPage(),
+        FavoritesPage.route: (_) => const FavoritesPage(),
+        PlaylistsPage.route: (_) => const PlaylistsPage(),
         WebDavPage.route: (_) => const WebDavPage(),
       },
     );

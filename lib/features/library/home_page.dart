@@ -6,7 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/recent_store.dart';
 import '../../platform/intent_channel.dart';
+import 'dart:typed_data';
+
 import '../../platform/media_library.dart';
+import 'library_pages.dart';
 import '../../data/smb_accounts.dart';
 import '../../diagnostics.dart';
 import '../../data/webdav_accounts.dart';
@@ -195,15 +198,28 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: const Icon(Icons.lan_outlined),
             onPressed: () => Navigator.of(context).pushNamed(NetworkPage.route),
           ),
-          IconButton(
-            tooltip: '刷新媒体库',
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(mediaLibraryProvider),
-          ),
-          IconButton(
-            tooltip: '设置',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).pushNamed(SettingsPage.route),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              switch (v) {
+                case 'history':
+                  Navigator.of(context).pushNamed(HistoryPage.route);
+                case 'favorites':
+                  Navigator.of(context).pushNamed(FavoritesPage.route);
+                case 'playlists':
+                  Navigator.of(context).pushNamed(PlaylistsPage.route);
+                case 'refresh':
+                  ref.invalidate(mediaLibraryProvider);
+                case 'settings':
+                  Navigator.of(context).pushNamed(SettingsPage.route);
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'history', child: Text('播放历史')),
+              PopupMenuItem(value: 'favorites', child: Text('收藏')),
+              PopupMenuItem(value: 'playlists', child: Text('播放列表')),
+              PopupMenuItem(value: 'refresh', child: Text('刷新媒体库')),
+              PopupMenuItem(value: 'settings', child: Text('设置')),
+            ],
           ),
         ],
       ),
@@ -224,7 +240,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             itemBuilder: (context, i) {
               final item = items[i];
               return ListTile(
-                leading: _VideoBadge(item: item),
+                leading: _Thumb(item: item),
                 title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
                   [item.resolution, item.sizeText].where((s) => s.isNotEmpty).join(' · '),
@@ -255,21 +271,46 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _VideoBadge extends StatelessWidget {
-  const _VideoBadge({required this.item});
+class _Thumb extends StatelessWidget {
+  const _Thumb({required this.item});
 
   final MediaItem item;
 
+  static final Map<int, Uint8List?> _cache = {};
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
+    final cached = _cache[item.id];
+    final placeholder = Container(
+      width: 56,
+      height: 42,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Icon(Icons.movie_outlined, color: Theme.of(context).colorScheme.primary),
+      child: Icon(Icons.movie_outlined, color: Theme.of(context).colorScheme.primary, size: 20),
+    );
+    if (cached != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.memory(cached, width: 56, height: 42, fit: BoxFit.cover),
+      );
+    }
+    return FutureBuilder<Uint8List?>(
+      future: _cache.containsKey(item.id)
+          ? Future.value(_cache[item.id])
+          : MediaLibrary.thumbnail(item.id).then((bytes) {
+              _cache[item.id] = bytes;
+              return bytes;
+            }),
+      builder: (context, snap) {
+        final bytes = snap.data;
+        if (bytes == null) return placeholder;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.memory(bytes, width: 56, height: 42, fit: BoxFit.cover),
+        );
+      },
     );
   }
 }
