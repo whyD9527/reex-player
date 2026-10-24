@@ -37,9 +37,9 @@ String smbFriendlyError(String raw) {
     '0xc0000120': '操作已取消',
     '0xc00000c9': '网络名不存在',
   };
-  final m = RegExp(r'\(0x[0-9a-fA-F]{8}\)').firstMatch(raw);
+  final m = RegExp(r'\((0x[0-9a-fA-F]{8})\)').firstMatch(raw);
   if (m != null) {
-    final code = m.group(1)!.toLowerCase();
+    final code = (m.group(1) ?? '').toLowerCase();
     final friendly = map[code];
     if (friendly != null) return '$friendly（$code）';
   }

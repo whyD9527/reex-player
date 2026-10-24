@@ -1,5 +1,10 @@
 import 'dart:convert';
 
+import 'dart:io';
+
+import '../data/webdav_accounts.dart';
+import '../util/text.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
@@ -56,6 +61,11 @@ class WebDavClient {
     late http.StreamedResponse res;
     try {
       res = await http.Client().send(req).timeout(const Duration(seconds: 20));
+    } on HandshakeException {
+      throw WebDavException(
+          'TLS 握手失败：这个地址用的是 https://，但服务器看起来只支持 http://。请把地址改成 http:// 开头。');
+    } on SocketException catch (e) {
+      throw WebDavException('无法连接服务器（检查地址、端口和防火墙）: $e');
     } catch (e) {
       throw WebDavException('无法连接: $e');
     }
@@ -120,4 +130,51 @@ class WebDavClient {
     if (user.isEmpty) return u.toString();
     return u.replace(userInfo: '${Uri.encodeComponent(user)}:${Uri.encodeComponent(pass)}').toString();
   }
+}
+
+class WebDavResult {
+  WebDavResult(this.client, this.entries);
+  final WebDavClient client;
+  final List<WebDavEntry> entries;
+}
+
+/// 列目录；如果地址误写成 https 而服务器只支持 http，会自动降级重试并写回账号。
+Future<WebDavResult> listWebDav(WebDavAccount account, String path) async {
+  // 依次尝试：原样 → https 降级 http → 全角转半角（凭据）→ 两者组合
+  final candidates = <WebDavAccount>[account];
+  if (account.url.startsWith('https://')) {
+    candidates.add(WebDavAccount(
+      url: 'http://${account.url.substring('https://'.length)}',
+      user: account.user,
+      pass: account.pass,
+      alias: account.alias,
+    ));
+  }
+  final u = toHalfWidth(account.user);
+  final pw = toHalfWidth(account.pass);
+  if (u != account.user || pw != account.pass) {
+    for (final c in [...candidates]) {
+      candidates.add(WebDavAccount(
+        url: c.url,
+        user: u,
+        pass: pw,
+        alias: account.alias,
+      ));
+    }
+  }
+
+  WebDavException? last;
+  for (final c in candidates) {
+    try {
+      final client = WebDavClient(baseUrl: c.url, user: c.user, pass: c.pass);
+      final entries = await client.list(path);
+      if (c.url != account.url || c.user != account.user || c.pass != account.pass) {
+        await WebDavAccountStore().replace(account, c);
+      }
+      return WebDavResult(client, entries);
+    } on WebDavException catch (e) {
+      last = e;
+    }
+  }
+  throw last ?? WebDavException('连接失败');
 }

@@ -68,6 +68,29 @@ class SmbAccountStore {
     await save(list);
   }
 
+  Future<void> replace(SmbAccount oldAccount, SmbAccount next) async {
+    final list = [...await load()];
+    for (var i = 0; i < list.length; i++) {
+      final a = list[i];
+      if (a.server == oldAccount.server &&
+          a.share == oldAccount.share &&
+          a.user == oldAccount.user &&
+          a.domain == oldAccount.domain) {
+        list[i] = next;
+        await save(list);
+        return;
+      }
+    }
+  }
+
+  Future<void> updateAt(int index, SmbAccount account) async {
+    final list = [...await load()];
+    if (index >= 0 && index < list.length) {
+      list[index] = account;
+      await save(list);
+    }
+  }
+
   Future<void> removeAt(int index) async {
     final list = [...await load()];
     if (index >= 0 && index < list.length) {

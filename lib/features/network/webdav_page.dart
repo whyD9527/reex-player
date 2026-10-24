@@ -38,6 +38,16 @@ class _WebDavPageState extends State<WebDavPage> {
     await _reload();
   }
 
+  Future<void> _edit(int index, WebDavAccount current) async {
+    final a = await showDialog<WebDavAccount>(
+      context: context,
+      builder: (_) => _AddWebDavDialog(initial: current),
+    );
+    if (a == null) return;
+    await _store.updateAt(index, a);
+    await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final accounts = _accounts;
@@ -61,12 +71,21 @@ class _WebDavPageState extends State<WebDavPage> {
                       leading: const Icon(Icons.cloud_outlined),
                       title: Text(a.label),
                       subtitle: Text(a.url),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          await _store.removeAt(i);
-                          await _reload();
-                        },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => _edit(i, a),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              await _store.removeAt(i);
+                              await _reload();
+                            },
+                          ),
+                        ],
                       ),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -81,17 +100,19 @@ class _WebDavPageState extends State<WebDavPage> {
 }
 
 class _AddWebDavDialog extends StatefulWidget {
-  const _AddWebDavDialog();
+  const _AddWebDavDialog({this.initial});
+
+  final WebDavAccount? initial;
 
   @override
   State<_AddWebDavDialog> createState() => _AddWebDavDialogState();
 }
 
 class _AddWebDavDialogState extends State<_AddWebDavDialog> {
-  final _url = TextEditingController();
-  final _user = TextEditingController();
-  final _pass = TextEditingController();
-  final _alias = TextEditingController();
+  late final _url = TextEditingController(text: widget.initial?.url ?? '');
+  late final _user = TextEditingController(text: widget.initial?.user ?? '');
+  late final _pass = TextEditingController(text: widget.initial?.pass ?? '');
+  late final _alias = TextEditingController(text: widget.initial?.alias ?? '');
 
   @override
   void dispose() {
@@ -105,7 +126,7 @@ class _AddWebDavDialogState extends State<_AddWebDavDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('添加 WebDAV'),
+      title: Text(widget.initial == null ? '添加 WebDAV' : '编辑 WebDAV'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -158,24 +179,20 @@ class WebDavBrowserPage extends StatefulWidget {
 
 class _WebDavBrowserPageState extends State<WebDavBrowserPage> {
   late String _path;
-  late Future<List<WebDavEntry>> _future;
-  late final WebDavClient _client = WebDavClient(
-    baseUrl: widget.account.url,
-    user: widget.account.user,
-    pass: widget.account.pass,
-  );
+  late Future<WebDavResult> _future;
 
   @override
   void initState() {
     super.initState();
     _path = widget.path;
-    _future = _client.list(_path);
+    _future = listWebDav(widget.account, _path);
   }
 
-  void _reload() => setState(() => _future = _client.list(_path));
+  void _reload() => setState(() => _future = listWebDav(widget.account, _path));
 
   Future<void> _play(WebDavEntry e) async {
-    final url = _client.playUrl(e.href);
+    final result = await _future;
+    final url = result.client.playUrl(e.href);
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => PlayerPage(path: url, title: e.name)),
     );
@@ -194,13 +211,13 @@ class _WebDavBrowserPageState extends State<WebDavBrowserPage> {
                 : _path.lastIndexOf('/');
             setState(() {
               _path = idx <= 0 ? '/' : _path.substring(0, idx);
-              _future = _client.list(_path);
+              _future = listWebDav(widget.account, _path);
             });
           },
         ),
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _reload)],
       ),
-      body: FutureBuilder<List<WebDavEntry>>(
+      body: FutureBuilder<WebDavResult>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
@@ -223,7 +240,7 @@ class _WebDavBrowserPageState extends State<WebDavBrowserPage> {
               ),
             );
           }
-          final items = [...?snap.data];
+          final items = [...?snap.data?.entries];
           items.sort((a, b) {
             if (a.isDir != b.isDir) return a.isDir ? -1 : 1;
             return a.name.toLowerCase().compareTo(b.name.toLowerCase());

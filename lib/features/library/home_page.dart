@@ -8,7 +8,9 @@ import '../../data/recent_store.dart';
 import '../../platform/intent_channel.dart';
 import '../../platform/media_library.dart';
 import '../../data/smb_accounts.dart';
+import '../../diagnostics.dart';
 import '../../data/webdav_accounts.dart';
+import '../../webdav/webdav_client.dart';
 import '../../smb/smb_session.dart';
 import '../network/network_page.dart';
 import '../network/webdav_page.dart';
@@ -42,7 +44,42 @@ class _HomePageState extends ConsumerState<HomePage> {
     });
   }
 
+  Future<void> _selfTest() async {
+    await Diag.log('=== selftest start ===');
+    final smbAccounts = await SmbAccountStore().load();
+    await Diag.log('smb accounts: ${smbAccounts.length}');
+    for (final a in smbAccounts) {
+      await Diag.log(
+          'smb try ${a.server}/${a.share} user="${a.user}" domain="${a.domain}" passLen=${a.pass.length} codes=${a.pass.codeUnits.join(",")}');
+      try {
+        final client = await SmbSession.client(a);
+        final entries = await client.list('/');
+        await Diag.log('smb ok: ${entries.length} entries');
+      } catch (e, st) {
+        await Diag.log('smb FAIL: $e');
+        await Diag.log('smb stack: $st');
+      }
+    }
+    final webdav = await WebDavAccountStore().load();
+    await Diag.log('webdav accounts: ${webdav.length}');
+    for (final a in webdav) {
+      await Diag.log('webdav try "${a.url}" user="${a.user}" passLen=${a.pass.length}');
+      try {
+        final result = await listWebDav(a, '/');
+        await Diag.log('webdav ok: ${result.entries.length} entries url=${result.client.baseUrl}');
+      } catch (e, st) {
+        await Diag.log('webdav FAIL: $e');
+        await Diag.log('webdav stack: $st');
+      }
+    }
+    await Diag.log('=== selftest end ===');
+  }
+
   Future<void> _openUri(String uri) async {
+    if (uri.startsWith('reexplayer://selftest')) {
+      await _selfTest();
+      return;
+    }
     // 诊断/自动化入口：直接打开网络页或某个 SMB 目录（设备上 adb 触摸注入不可用时用）
     if (uri.startsWith('reexplayer://network')) {
       await Navigator.of(context).pushNamed(NetworkPage.route);

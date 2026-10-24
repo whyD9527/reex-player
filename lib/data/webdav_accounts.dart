@@ -44,6 +44,25 @@ class WebDavAccountStore {
 
   Future<void> add(WebDavAccount a) async => save([...await load(), a]);
 
+  Future<void> replace(WebDavAccount oldAccount, WebDavAccount next) async {
+    final list = [...await load()];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].url == oldAccount.url && list[i].user == oldAccount.user) {
+        list[i] = next;
+        await save(list);
+        return;
+      }
+    }
+  }
+
+  Future<void> updateAt(int i, WebDavAccount a) async {
+    final list = [...await load()];
+    if (i >= 0 && i < list.length) {
+      list[i] = a;
+      await save(list);
+    }
+  }
+
   Future<void> removeAt(int i) async {
     final list = [...await load()];
     if (i >= 0 && i < list.length) {

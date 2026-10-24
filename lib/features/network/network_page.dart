@@ -40,6 +40,16 @@ class _NetworkPageState extends State<NetworkPage> {
     await _reload();
   }
 
+  Future<void> _edit(int index, SmbAccount current) async {
+    final account = await showDialog<SmbAccount>(
+      context: context,
+      builder: (_) => _AddAccountDialog(initial: current),
+    );
+    if (account == null) return;
+    await _store.updateAt(index, account);
+    await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final accounts = _accounts;
@@ -72,12 +82,21 @@ class _NetworkPageState extends State<NetworkPage> {
                       leading: const Icon(Icons.folder_shared_outlined),
                       title: Text(a.label),
                       subtitle: Text('smb://${a.server}/${a.share}'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          await _store.removeAt(i);
-                          await _reload();
-                        },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => _edit(i, a),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              await _store.removeAt(i);
+                              await _reload();
+                            },
+                          ),
+                        ],
                       ),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -92,19 +111,21 @@ class _NetworkPageState extends State<NetworkPage> {
 }
 
 class _AddAccountDialog extends StatefulWidget {
-  const _AddAccountDialog();
+  const _AddAccountDialog({this.initial});
+
+  final SmbAccount? initial;
 
   @override
   State<_AddAccountDialog> createState() => _AddAccountDialogState();
 }
 
 class _AddAccountDialogState extends State<_AddAccountDialog> {
-  final _server = TextEditingController();
-  final _share = TextEditingController();
-  final _user = TextEditingController();
-  final _pass = TextEditingController();
-  final _domain = TextEditingController();
-  final _alias = TextEditingController();
+  late final _server = TextEditingController(text: widget.initial?.server ?? '');
+  late final _share = TextEditingController(text: widget.initial?.share ?? '');
+  late final _user = TextEditingController(text: widget.initial?.user ?? '');
+  late final _pass = TextEditingController(text: widget.initial?.pass ?? '');
+  late final _domain = TextEditingController(text: widget.initial?.domain ?? '');
+  late final _alias = TextEditingController(text: widget.initial?.alias ?? '');
 
   @override
   void dispose() {
@@ -120,7 +141,7 @@ class _AddAccountDialogState extends State<_AddAccountDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('添加 SMB 共享'),
+      title: Text(widget.initial == null ? '添加 SMB 共享' : '编辑 SMB 共享'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

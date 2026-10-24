@@ -61,6 +61,14 @@ Android SDK 36、JDK 21、NDK r28c。
    `file_picker` / `package_info_plus` / `wakelock_plus` 在本环境下无法编译，
    已改为：SAF 自实现选片 + `third_party/` 里两个纯 Dart stub。
 
+## 自动修正
+
+- **全角字符**：中文输入法常把 `! : @` 打成全角（U+FF01…），SMB/WebDAV 认证会失败。
+  首次失败后会用半角凭据重试一次，成功则写回账号。
+- **https→http**：WebDAV 地址误写成 https 而服务器只支持 http 时，自动降级重试并写回地址。
+- **诊断**：`reexplayer://selftest` 会用已保存账号跑一遍连接，日志写到
+  `/sdcard/Android/data/io.github.whyd9527.reex_player/files/diagnostics.log`。
+
 ## WebDAV
 
 - `PROPFIND` + `DAV:` XML 解析（`xml` 包），支持自定义端口与 Basic Auth；

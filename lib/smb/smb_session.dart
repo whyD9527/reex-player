@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../data/smb_accounts.dart';
+import '../util/text.dart';
 import 'smb_client.dart';
 import 'smb_proxy.dart';
 
@@ -20,13 +21,45 @@ class SmbSession {
     if (_client != null && _key == key) return _client!;
     await reset();
     final c = await SmbClient.spawn();
-    await c.connect(
-      server: account.server,
-      share: account.share,
-      user: account.user,
-      pass: account.pass,
-      domain: account.domain,
-    );
+    try {
+      await c.connect(
+        server: account.server,
+        share: account.share,
+        user: account.user,
+        pass: account.pass,
+        domain: account.domain,
+      );
+    } on SmbException catch (e) {
+      // 常见误输入：中文输入法把 ! : @ 等打成全角，导致 0xc000006d。
+      // 只在失败且确实存在全角字符时，用半角重试一次，并写回账号。
+      final user2 = toHalfWidth(account.user);
+      final pass2 = toHalfWidth(account.pass);
+      final share2 = toHalfWidth(account.share);
+      final server2 = toHalfWidth(account.server);
+      final changed = user2 != account.user ||
+          pass2 != account.pass ||
+          share2 != account.share ||
+          server2 != account.server;
+      if (!changed || !e.message.contains('0xc000006d')) rethrow;
+      await c.connect(
+        server: server2,
+        share: share2,
+        user: user2,
+        pass: pass2,
+        domain: account.domain,
+      );
+      await SmbAccountStore().replace(
+        account,
+        SmbAccount(
+          server: server2,
+          share: share2,
+          user: user2,
+          pass: pass2,
+          domain: account.domain,
+          alias: account.alias,
+        ),
+      );
+    }
     debugPrint('[smb] connected $key');
     _client = c;
     _key = key;
