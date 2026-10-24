@@ -1,10 +1,14 @@
 package io.github.whyd9527.reex_player
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -13,14 +17,16 @@ import java.io.File
 
 /**
  * 承载 Flutter 的 Activity：
- *  - 外部 VIEW 意图的 URI 通过 reex_player/intent 通道交给 Dart
- *  - pickVideo：用 SAF 选片，复制到 cacheDir 后返回本地绝对路径
+ *  - reex_player/intent : 外部 VIEW 意图 + SAF 选片
+ *  - reex_player/media  : MediaStore 视频扫描 + 权限
  */
 class MainActivity : FlutterActivity() {
 
     private var channel: MethodChannel? = null
+    private var mediaChannel: MethodChannel? = null
     private var pendingUri: String? = null
     private var pendingPick: MethodChannel.Result? = null
+    private var pendingPermission: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +46,89 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        mediaChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "reex_player/media")
+        mediaChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "scanVideos" -> scanVideos(result)
+                "ensurePermission" -> ensurePermission(result)
+                else -> result.notImplemented()
+            }
+        }
     }
+
+    // ---- 媒体库 ----
+
+    private fun videoPermission(): String =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_VIDEO
+        else Manifest.permission.READ_EXTERNAL_STORAGE
+
+    private fun hasVideoPermission(): Boolean =
+        checkSelfPermission(videoPermission()) == PackageManager.PERMISSION_GRANTED
+
+    private fun ensurePermission(result: MethodChannel.Result) {
+        if (hasVideoPermission()) {
+            result.success(true)
+            return
+        }
+        pendingPermission = result
+        requestPermissions(arrayOf(videoPermission()), REQ_PERM)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == REQ_PERM) {
+            val r = pendingPermission
+            pendingPermission = null
+            r?.success(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+            return
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
+    private fun scanVideos(result: MethodChannel.Result) {
+        if (!hasVideoPermission()) {
+            result.success(emptyList<Map<String, Any?>>())
+            return
+        }
+        val out = ArrayList<Map<String, Any?>>(256)
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.SIZE,
+            MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.DATE_ADDED,
+            MediaStore.Video.Media.WIDTH,
+            MediaStore.Video.Media.HEIGHT,
+        )
+        try {
+            contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection, null, null,
+                MediaStore.Video.Media.DATE_ADDED + " DESC"
+            )?.use { c: Cursor ->
+                while (c.moveToNext() && out.size < 5000) {
+                    out.add(
+                        mapOf(
+                            "id" to c.getLong(0),
+                            "name" to (c.getString(1) ?: ""),
+                            "durationMs" to c.getLong(2),
+                            "size" to c.getLong(3),
+                            "path" to (c.getString(4) ?: ""),
+                            "dateAdded" to c.getLong(5),
+                            "width" to c.getInt(6),
+                            "height" to c.getInt(7),
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            result.error("scan_failed", e.message, null)
+            return
+        }
+        result.success(out)
+    }
+
+    // ---- 选片 ----
 
     private fun openDocument(result: MethodChannel.Result) {
         if (pendingPick != null) {
@@ -80,7 +168,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun copyToCache(uri: Uri): String {
-        val name = displayName(uri) ?: "picked_${System.currentTimeMillis()}.mp4"
+        val name = displayName(uri) ?: "picked_" + System.currentTimeMillis() + ".mp4"
         val out = File(cacheDir, name)
         contentResolver.openInputStream(uri)!!.use { input ->
             out.outputStream().use { output -> input.copyTo(output) }
@@ -117,5 +205,6 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val REQ_PICK = 0x5EED
+        private const val REQ_PERM = 0x5EEE
     }
 }

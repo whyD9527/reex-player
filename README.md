@@ -14,10 +14,11 @@ Reex 1.8.9 的开源重写版：一个可长期维护的 Flutter + libmpv 播放
 - [x] 系统播放器入口（VIEW/SEND intent → 自动打开播放页）
 - [x] SAF 选片（MainActivity 自实现，复制到 cache 后播放）
 - [x] 最近打开记录（SharedPreferences）
-- [ ] 媒体库（MediaStore 扫描 + 缩略图）
+- [x] 媒体库（MediaStore 扫描；缩略图待做）
 - [ ] SMB / WebDAV / FTP
 - [ ] 播放列表 / 历史 / 收藏（可导入 `reex.sqlite`，schema 见 RE 仓库 `data/reex-schema.sql`）
-- [ ] 字幕、音轨切换、倍速、画中画
+- [x] 音轨/字幕切换、倍速、±10s、进度记忆
+- [ ] 画中画 / 后台播放 / 通知栏
 
 ## 架构
 
@@ -57,6 +58,19 @@ Android SDK 36、JDK 21、NDK r28c。
 3. **AGP 9 的内置 Kotlin 与插件自带的 KGP 冲突**：
    `file_picker` / `package_info_plus` / `wakelock_plus` 在本环境下无法编译，
    已改为：SAF 自实现选片 + `third_party/` 里两个纯 Dart stub。
+
+## 体积
+
+| 包 | 体积 |
+| --- | --- |
+| arm64-v8a release（split） | **29.3 MB** |
+| armeabi-v7a release（split） | 25.9 MB |
+| universal release | 86.2 MB |
+| 参考：原版 Reex 1.8.9 | 22.1 MB |
+
+体积主要来自 `libmpv.so` + FFmpeg（media_kit 的预编译包）与 Flutter 引擎。
+进一步压缩的思路：换更小的 libmpv 构建（去掉不需要的解码器）、
+`--obfuscate`、以及只保留 arm64。
 
 ## 产物
 
