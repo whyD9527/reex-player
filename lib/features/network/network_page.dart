@@ -4,6 +4,7 @@ import '../../data/smb_accounts.dart';
 import '../../smb/smb_client.dart';
 import '../../smb/smb_session.dart';
 import '../player/player_page.dart';
+import 'ftp_page.dart';
 import 'webdav_page.dart';
 
 class NetworkPage extends StatefulWidget {
@@ -61,6 +62,11 @@ class _NetworkPageState extends State<NetworkPage> {
             tooltip: 'WebDAV',
             icon: const Icon(Icons.cloud_outlined),
             onPressed: () => Navigator.of(context).pushNamed(WebDavPage.route),
+          ),
+          IconButton(
+            tooltip: 'FTP',
+            icon: const Icon(Icons.dns_outlined),
+            onPressed: () => Navigator.of(context).pushNamed(FtpPage.route),
           ),
         ],
       ),

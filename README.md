@@ -18,9 +18,13 @@ Reex 1.8.9 的开源重写版：一个可长期维护的 Flutter + libmpv 播放
 - [x] **SMB**（libsmb2 FFI + 本地 HTTP Range 代理，支持浏览/播放/拖动）
 - [x] **WebDAV**（PROPFIND 列目录 + Basic Auth 直链播放）
 - [ ] FTP
-- [ ] 播放列表 / 历史 / 收藏（可导入 `reex.sqlite`，schema 见 RE 仓库 `data/reex-schema.sql`）
+- [x] 播放列表 / 播放历史 / 收藏（本地 JSON，后续可迁 drift）
+- [ ] 导入复刻 Reex 的 `reex.sqlite`
 - [x] 音轨/字幕切换、倍速、±10s、进度记忆
-- [ ] 画中画 / 后台播放 / 通知栏
+- [x] 手势：左右滑进度、左侧滑亮度、右侧滑音量、双击播放/暂停、长按 2x
+- [x] 媒体信息面板（分辨率/像素格式/音频参数/轨数）
+- [x] **后台播放 + 媒体通知 + 锁屏/蓝牙控制**（前台服务 + MediaSession）
+- [ ] 画中画
 
 ## 架构
 

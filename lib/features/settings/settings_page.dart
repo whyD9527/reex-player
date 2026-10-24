@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app.dart';
+import '../../data/library_store.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -33,6 +34,17 @@ class SettingsPage extends ConsumerWidget {
             groupValue: mode,
             title: const Text('深色'),
             onChanged: (v) => ref.read(themeModeProvider.notifier).state = v!,
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('清除播放历史'),
+            subtitle: const Text('只清历史记录，不删除文件'),
+            onTap: () async {
+              await LibraryStore().clearHistory();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已清除')));
+              }
+            },
           ),
           const Divider(),
           const ListTile(

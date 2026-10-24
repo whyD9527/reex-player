@@ -70,7 +70,7 @@ class LibraryStore {
 
   Future<void> recordPlay(String path, String title, Duration position, Duration duration) async {
     final prefs = await SharedPreferences.getInstance();
-    final list = await history();
+    final list = [...await history()];
     list.removeWhere((e) => e.path == path);
     list.insert(
       0,
@@ -88,7 +88,7 @@ class LibraryStore {
 
   Future<void> removeHistory(String path) async {
     final prefs = await SharedPreferences.getInstance();
-    final list = await history();
+    final list = [...await history()];
     list.removeWhere((e) => e.path == path);
     await prefs.setString(_historyKey, jsonEncode(list.map((e) => e.toJson()).toList()));
   }
