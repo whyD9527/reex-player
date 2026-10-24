@@ -4,6 +4,7 @@ import '../../data/smb_accounts.dart';
 import '../../smb/smb_client.dart';
 import '../../smb/smb_session.dart';
 import '../player/player_page.dart';
+import 'webdav_page.dart';
 
 class NetworkPage extends StatefulWidget {
   const NetworkPage({super.key});
@@ -43,7 +44,16 @@ class _NetworkPageState extends State<NetworkPage> {
   Widget build(BuildContext context) {
     final accounts = _accounts;
     return Scaffold(
-      appBar: AppBar(title: const Text('网络共享')),
+      appBar: AppBar(
+        title: const Text('网络共享'),
+        actions: [
+          IconButton(
+            tooltip: 'WebDAV',
+            icon: const Icon(Icons.cloud_outlined),
+            onPressed: () => Navigator.of(context).pushNamed(WebDavPage.route),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
         icon: const Icon(Icons.add),

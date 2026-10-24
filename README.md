@@ -16,7 +16,8 @@ Reex 1.8.9 的开源重写版：一个可长期维护的 Flutter + libmpv 播放
 - [x] 最近打开记录（SharedPreferences）
 - [x] 媒体库（MediaStore 扫描；缩略图待做）
 - [x] **SMB**（libsmb2 FFI + 本地 HTTP Range 代理，支持浏览/播放/拖动）
-- [ ] WebDAV / FTP
+- [x] **WebDAV**（PROPFIND 列目录 + Basic Auth 直链播放）
+- [ ] FTP
 - [ ] 播放列表 / 历史 / 收藏（可导入 `reex.sqlite`，schema 见 RE 仓库 `data/reex-schema.sql`）
 - [x] 音轨/字幕切换、倍速、±10s、进度记忆
 - [ ] 画中画 / 后台播放 / 通知栏
@@ -59,6 +60,12 @@ Android SDK 36、JDK 21、NDK r28c。
 3. **AGP 9 的内置 Kotlin 与插件自带的 KGP 冲突**：
    `file_picker` / `package_info_plus` / `wakelock_plus` 在本环境下无法编译，
    已改为：SAF 自实现选片 + `third_party/` 里两个纯 Dart stub。
+
+## WebDAV
+
+- `PROPFIND` + `DAV:` XML 解析（`xml` 包），支持自定义端口与 Basic Auth；
+- 播放直接把 `http://user:pass@host/path` 交给 mpv（ffmpeg 原生支持 basic auth）；
+- 入口：网络页右上角 WebDAV 按钮 / `reexplayer://webdav-browse?` 诊断意图。
 
 ## SMB 实现要点
 

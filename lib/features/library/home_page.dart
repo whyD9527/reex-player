@@ -8,8 +8,10 @@ import '../../data/recent_store.dart';
 import '../../platform/intent_channel.dart';
 import '../../platform/media_library.dart';
 import '../../data/smb_accounts.dart';
+import '../../data/webdav_accounts.dart';
 import '../../smb/smb_session.dart';
 import '../network/network_page.dart';
+import '../network/webdav_page.dart';
 import '../player/player_page.dart';
 import '../settings/settings_page.dart';
 
@@ -44,6 +46,20 @@ class _HomePageState extends ConsumerState<HomePage> {
     // 诊断/自动化入口：直接打开网络页或某个 SMB 目录（设备上 adb 触摸注入不可用时用）
     if (uri.startsWith('reexplayer://network')) {
       await Navigator.of(context).pushNamed(NetworkPage.route);
+      return;
+    }
+    if (uri.startsWith('reexplayer://webdav-browse')) {
+      final q = Uri.parse(uri).queryParameters;
+      final account = WebDavAccount(
+        url: q['url'] ?? '',
+        user: q['user'] ?? '',
+        pass: q['pass'] ?? '',
+      );
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => WebDavBrowserPage(account: account, path: q['path'] ?? '/'),
+        ),
+      );
       return;
     }
     if (uri.startsWith('reexplayer://smb-browse')) {

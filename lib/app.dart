@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/library/home_page.dart';
 import 'features/network/network_page.dart';
+import 'features/network/webdav_page.dart';
 import 'features/settings/settings_page.dart';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
@@ -24,6 +25,7 @@ class ReexApp extends ConsumerWidget {
       routes: {
         SettingsPage.route: (_) => const SettingsPage(),
         NetworkPage.route: (_) => const NetworkPage(),
+        WebDavPage.route: (_) => const WebDavPage(),
       },
     );
   }
