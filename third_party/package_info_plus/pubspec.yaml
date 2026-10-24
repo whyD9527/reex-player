@@ -1,0 +1,12 @@
+name: package_info_plus
+description: "Local stub: only the handful of fields this app needs; no Android plugin."
+version: 9.0.1
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter

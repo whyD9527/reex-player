@@ -1,0 +1,12 @@
+name: wakelock_plus
+description: "Local stub: no-op wakelock (media_kit_video only calls enable/disable)."
+version: 1.5.2
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
