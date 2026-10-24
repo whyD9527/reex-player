@@ -156,8 +156,16 @@ class SmbBrowserPage extends StatefulWidget {
 }
 
 class _SmbBrowserPageState extends State<SmbBrowserPage> {
-  late String _path = widget.path;
-  late Future<List<SmbEntry>> _future = _load();
+  late String _path;
+  late Future<List<SmbEntry>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _path = widget.path;
+    // 注意：不能在字段初始化时调用 _load()，那时 widget 还没挂载。
+    _future = _load();
+  }
 
   Future<List<SmbEntry>> _load() async {
     final client = await SmbSession.client(widget.account);
@@ -216,7 +224,29 @@ class _SmbBrowserPageState extends State<SmbBrowserPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('${snap.error}'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 40),
+                    const SizedBox(height: 12),
+                    Text(
+                      '无法连接 ${widget.account.server}/${widget.account.share}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text('${snap.error}', textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _reload,
+                      child: const Text('重试'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           final items = snap.data ?? const [];
           if (items.isEmpty) return const Center(child: Text('空目录'));

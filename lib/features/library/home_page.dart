@@ -41,6 +41,27 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _openUri(String uri) async {
+    // 诊断/自动化入口：直接打开网络页或某个 SMB 目录（设备上 adb 触摸注入不可用时用）
+    if (uri.startsWith('reexplayer://network')) {
+      await Navigator.of(context).pushNamed(NetworkPage.route);
+      return;
+    }
+    if (uri.startsWith('reexplayer://smb-browse')) {
+      final q = Uri.parse(uri).queryParameters;
+      final account = SmbAccount(
+        server: q['server'] ?? '',
+        share: q['share'] ?? '',
+        user: q['user'] ?? '',
+        pass: q['pass'] ?? '',
+        domain: q['domain'] ?? '',
+      );
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SmbBrowserPage(account: account, path: q['path'] ?? '/'),
+        ),
+      );
+      return;
+    }
     // 诊断用：reexplayer://smb-list?server=..&share=..&user=..&pass=..&path=/
     if (uri.startsWith('reexplayer://smb-list')) {
       final q = Uri.parse(uri).queryParameters;
