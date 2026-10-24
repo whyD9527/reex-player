@@ -5,10 +5,12 @@ Reex 1.8.9 的开源重写版：一个可长期维护的 Flutter + libmpv 播放
 > 逆向分析与安全审计见 [whyD9527/reex](https://github.com/whyD9527/reex)；
 > 本项目只复用**结论**（协议、数据结构、mpv 用法），不包含任何反编译代码。
 
+![播放截图](docs/screenshot-player.png)
+
 ## 当前状态
 
 - [x] Flutter 工程骨架（Riverpod + Material 3 + 深色/浅色）
-- [x] libmpv 播放（media_kit 封装）——已真机验证：640×360 / 30fps H.264 正常解码播放
+- [x] libmpv 播放（media_kit 封装）——**debug 与 release 均已在真机验证**：640×360 / 30fps H.264 正常解码播放
 - [x] 系统播放器入口（VIEW/SEND intent → 自动打开播放页）
 - [x] SAF 选片（MainActivity 自实现，复制到 cache 后播放）
 - [x] 最近打开记录（SharedPreferences）
@@ -55,6 +57,11 @@ Android SDK 36、JDK 21、NDK r28c。
 3. **AGP 9 的内置 Kotlin 与插件自带的 KGP 冲突**：
    `file_picker` / `package_info_plus` / `wakelock_plus` 在本环境下无法编译，
    已改为：SAF 自实现选片 + `third_party/` 里两个纯 Dart stub。
+
+## 产物
+
+- `flutter build apk --release` → 86 MB（全 ABI）；`--split-per-abi` 可缩到 arm64 单包约 30 MB
+- release 目前用 debug 签名（Flutter 模板默认），正式发布请换自己的 keystore
 
 ## License
 
